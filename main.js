@@ -4,6 +4,8 @@ const MODELS_INDEX_PATH = `${SPLIT_DATA_DIR}/models.json`; // Path to the genera
 const plotlyDivId = 'plotly-heatmap';
 const ITEMS_PER_LOAD = 5; // How many examples to show/load at a time in modal
 const LUMINANCE_THRESHOLD = 0.5; // Threshold for switching text color
+const DEFAULT_COSINE_MIN = 0.0; // Default if no data found
+const DEFAULT_COSINE_MAX = 0.3; // Default if no data found
 
 // --- Selectors ---
 const modelSelect = d3.select('#model-select');
@@ -347,13 +349,6 @@ function updateVisualization() {
     const selectedMetricKey = metricSelect.node().value;
     const selectedPowerFilter = powerSelect.node().value;
 
-    // Determine metric info (key, label, scale, range)
-    if (selectedMetricKey === 'cosine_dist_from_no_demog') {
-        currentMetricInfo = { key: 'avgCos', label: 'Avg Cosine Distance', colorscale: cosineColorScale, zmin: 0, zmax: 0.3 }; // Adjusted max based on potential data range
-    } else { // score (Win Rate)
-        currentMetricInfo = { key: 'avgScore', label: 'Avg Win Rate', colorscale: winRateColorScale, zmin: 0, zmax: 1 };
-    }
-
     // Get pre-aggregated data for the current selection
     const modelPowerAggData = aggregatedData[selectedModel]?.[selectedPowerFilter];
 
@@ -363,6 +358,61 @@ function updateVisualization() {
         plotlyDiv.innerHTML = "<p>No data available for this selection.</p>";
         closeModal(); // Ensure modal is closed if plot is cleared
         return;
+    }
+
+    // --- ** NEW: Calculate Dynamic Cosine Distance Range ** ---
+    let dynamicZmin = DEFAULT_COSINE_MIN;
+    let dynamicZmax = DEFAULT_COSINE_MAX;
+
+    if (selectedMetricKey === 'cosine_dist_from_no_demog') {
+        let minCos = Infinity;
+        let maxCos = -Infinity;
+        let foundValue = false;
+
+        Object.values(modelPowerAggData).forEach(entry => {
+            const cosValue = entry.avgCos;
+            if (cosValue !== null && !isNaN(cosValue)) {
+                minCos = Math.min(minCos, cosValue);
+                maxCos = Math.max(maxCos, cosValue);
+                foundValue = true;
+            }
+        });
+
+        if (foundValue) {
+            // Round min down to nearest 0.05, ensuring it's >= 0
+            dynamicZmin = Math.max(0, Math.floor(minCos / 0.05) * 0.05);
+            // Round max up to nearest 0.05
+            dynamicZmax = Math.ceil(maxCos / 0.05) * 0.05;
+            // Ensure max is always at least slightly greater than min
+            if (dynamicZmax <= dynamicZmin) {
+                dynamicZmax = dynamicZmin + 0.05;
+            }
+             console.log(`Dynamic Cosine Range for ${selectedModel} (${selectedPowerFilter}): [${dynamicZmin.toFixed(2)}, ${dynamicZmax.toFixed(2)}]`);
+        } else {
+            console.log(`No valid cosine data for ${selectedModel} (${selectedPowerFilter}), using default range.`);
+            // Keep default values if no valid data found
+        }
+    }
+    // --- End Dynamic Range Calculation ---
+
+
+    // Determine metric info (key, label, scale, range)
+    if (selectedMetricKey === 'cosine_dist_from_no_demog') {
+        currentMetricInfo = {
+            key: 'avgCos',
+            label: 'Avg Cosine Distance',
+            colorscale: cosineColorScale,
+            zmin: dynamicZmin, // Use calculated dynamic min
+            zmax: dynamicZmax  // Use calculated dynamic max
+        };
+    } else { // score (Win Rate)
+        currentMetricInfo = {
+            key: 'avgScore',
+            label: 'Avg Win Rate',
+            colorscale: winRateColorScale,
+            zmin: 0, // Fixed range for win rate
+            zmax: 1
+        };
     }
 
     // --- Prepare Data for Plotly ---
