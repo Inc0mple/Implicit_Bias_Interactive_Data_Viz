@@ -2,7 +2,7 @@
 const SPLIT_DATA_DIR = 'data/split_by_model';
 const MODELS_INDEX_PATH = `${SPLIT_DATA_DIR}/models.json`;
 const plotlyDivId = 'plotly-heatmap';
-const ITEMS_PER_LOAD = 5; // Examples per page in modal
+const ITEMS_PER_LOAD = 100; // Examples per page in modal
 const LUMINANCE_THRESHOLD = 0.5; // For choosing black/white text on heatmap cells
 const DEFAULT_COSINE_MIN = 0.0; // Default heatmap range if calculation fails
 const DEFAULT_COSINE_MAX = 0.5; // Adjusted default max based on typical ranges seen
@@ -32,6 +32,9 @@ const modalLoadMoreBtn = document.getElementById('modal-load-more');
 const plotlyDiv = document.getElementById(plotlyDivId);
 const avgMetricNoPdSpan = document.getElementById('avg-metric-no-pd');
 const avgMetricPdSpan = document.getElementById('avg-metric-pd');
+const overallMeanSpan = document.getElementById('overall-mean');
+const overallStdevSpan = document.getElementById('overall-stdev');
+
 
 // --- Global Variables ---
 let rawData = []; // Combined data from all loaded CSVs
@@ -318,6 +321,8 @@ function updateVisualization() {
         Plotly.purge(plotlyDivId);
         plotlyDiv.innerHTML = "<p>No data available for this selection.</p>";
         interpretationsContent.innerHTML = "<p>No data available for interpretation.</p>"; // Clear interpretations
+        overallMeanSpan.textContent = 'N/A'; // Clear summary stats
+        overallStdevSpan.textContent = 'N/A';
         closeModal(); // Ensure modal is closed if plot is cleared
         return;
     }
@@ -450,6 +455,26 @@ function updateVisualization() {
     // Create/Update Plot
     Plotly.newPlot(plotlyDivId, [trace], layout, config);
 
+    // --- ** NEW: Calculate and Display Overall Mean/Std Dev ** ---
+    const currentValues = Object.values(modelPowerAggData)
+                               .map(entry => entry[currentMetricInfo.key])
+                               .filter(val => val !== null && !isNaN(val)); // Get only valid numeric values
+    let overallMean = NaN;
+    let overallStdev = NaN;
+    if (currentValues.length > 0) {
+        overallMean = currentValues.reduce((sum, val) => sum + val, 0) / currentValues.length;
+        if (currentValues.length > 1) {
+            const variance = currentValues.reduce((sumSqDiff, val) => sumSqDiff + Math.pow(val - overallMean, 2), 0) / currentValues.length; // Population variance
+            overallStdev = Math.sqrt(variance);
+        } else {
+            overallStdev = 0; // Std dev is 0 if only one point
+        }
+    }
+    // Update the DOM elements
+    overallMeanSpan.textContent = isNaN(overallMean) ? 'N/A' : overallMean.toFixed(3);
+    overallStdevSpan.textContent = isNaN(overallStdev) ? 'N/A' : overallStdev.toFixed(3);
+    // --- End Overall Mean/Std Dev Calculation ---
+
     // Generate and Display Interpretations
     interpretationsTitle.textContent = `Interpretations for ${selectedModel} (${selectedPowerFilter === 'all' ? 'All Scenarios' : (selectedPowerFilter === '1' ? 'Power Disparity' : 'No Power Disparity')})`;
     generateAndDisplayInterpretations(modelPowerAggData, currentDemogMap, currentMetricInfo.label, currentMetricInfo.key);
@@ -473,6 +498,18 @@ function generateDetailsHtml(dataToShow, startIndex = 0) {
         const subDemogLink = `<span class="info-link" data-target-id="demographic-${row.demographic_dim?.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '')}" data-highlight-identity="${row.sub_persona_demog}">${row.sub_persona_demog}</span>`;
         const resDemogLink = `<span class="info-link" data-target-id="demographic-${row.demographic_dim?.replace(/\s+/g, '-')?.replace(/[^a-zA-Z0-9-]/g, '')}" data-highlight-identity="${row.res_persona_demog}">${row.res_persona_demog}</span>`;
 
+        // Determine the win rate value for the data attribute
+        const winRate = row.score;
+        let winRateCategory = 'na'; // Default category
+        if (winRate !== null && !isNaN(winRate)) {
+            if (winRate === 0) winRateCategory = '0';
+            else if (winRate === 0.25) winRateCategory = '025';
+            else if (winRate === 0.5) winRateCategory = '05';
+            else if (winRate === 0.75) winRateCategory = '075';
+            else if (winRate === 1) winRateCategory = '1';
+            // Add more categories if needed, or handle ranges
+        }
+
         detailsHtml += `
             <div class="modal-example-item">
                 <p class="item-title"><strong>Sample ${displayIndex} of ${modalCurrentData.length}</strong></p>
@@ -482,11 +519,12 @@ function generateDetailsHtml(dataToShow, startIndex = 0) {
                         <p><strong>Scenario ID:</strong> ${scenarioLink}</p>
                         <p><strong>Power Diff:</strong> ${row.power_differential === 1 ? 'Present (1)' : 'Absent (0)'}</p>
                         <p><strong>SUB Persona:</strong> ${subDemogLink}</p>
-                        <p><strong>RES Persona:</strong> ${resDemogLink}</p>
+                        
                     </div>
                     <div class="details-column">
                         <p><strong>Cosine Dist.:</strong> <span class="metric-value cosine-value">${row.cosine_dist_from_no_demog?.toFixed(4) ?? 'N/A'}</span></p>
-                        <p><strong>Win Rate (Score):</strong> <span class="metric-value winrate-value">${row.score?.toFixed(2) ?? 'N/A'}</span></p>
+                        <p><strong>Win Rate (Score):</strong> <span class="metric-value winrate-value" data-winrate-value="${winRateCategory}">${winRate?.toFixed(2) ?? 'N/A'}</span></p>
+                        <p><strong>RES Persona:</strong> ${resDemogLink}</p>
                     </div>
                 </div> 
 
@@ -496,8 +534,8 @@ function generateDetailsHtml(dataToShow, startIndex = 0) {
                 </div>
 
                 <div class="response-container">
-                    <p><strong>Demog Response:</strong> <span class="modal-response demog-resp">${row.response.trim() || '(No Response)'}</span></p>
-                    <p><strong>Non-Demog Resp:</strong> <span class="modal-response baseline-resp">${row.response_non_demog.trim() || '(No Response)'}</span></p>
+                    <p><strong>Demog Response (By Blake):</strong> <span class="modal-response demog-resp">${row.response.trim() || '(No Response)'}</span></p>
+                    <p><strong>Non-Demog Resp (By Blake):</strong> <span class="modal-response baseline-resp">${row.response_non_demog.trim() || '(No Response)'}</span></p>
                 </div>
 
             </div>`; // End modal-example-item
