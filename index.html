@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LLM Implicit Bias Visualization (Plotly)</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Load Plotly.js library -->
+    <script src="https://cdn.plot.ly/plotly-3.0.1.min.js" charset="utf-8"></script>
+</head>
+<body>
+    <h1>Unmasking Implicit Bias in LLMs</h1>
+
+    <!-- Global Controls to toggle main sections -->
+    <div id="global-controls">
+        <button class="toggle-button" data-target="preamble">Show Project Info</button>
+        <button class="toggle-button" data-target="scenarios-list-container">Show Scenarios List</button>
+        <button class="toggle-button" data-target="demographics-list-container">Show Demographics List</button>
+    </div>
+
+    <!-- Preamble Section -->
+    <div id="preamble" class="collapsible-section">
+        <button class="sticky-close-button" data-target="preamble">Hide Info ×</button>
+        <h2>About This Visualization</h2>
+        <p>This interactive tool explores potential implicit biases in Large Language Models (LLMs) based on the findings of the paper: <a href="https://arxiv.org/abs/2503.01532" target="_blank" rel="noopener noreferrer"><em>"Unmasking Implicit Bias: Evaluating Persona-Prompted LLM Responses in Power-Disparate Social Scenarios"</em></a></p>
+        <p>LLMs were prompted to respond in simulated <span class="info-link" data-target-id="scenarios-list-container" data-highlight-type="section">social scenarios</span> involving two personas: a <strong>Subject (SUB, "Alex")</strong> initiating an interaction, and a <strong>Responder (RES, "Blake")</strong> reacting. Different <span class="info-link" data-target-id="demographics-list-container" data-highlight-type="section">demographic identities</span> (e.g., <span class="info-link" data-target-id="demographic-Race">Race</span>, <span class="info-link" data-target-id="demographic-Age">Age</span>, <span class="info-link" data-target-id="demographic-Gender Identity">Gender</span>) were assigned to these personas.</p>
+        <h3>Metrics Explored:</h3>
+        <ul>
+            <li><strong>Cosine Distance (Sensitivity):</strong> Measures how much the <em>meaning</em> (semantics) of the LLM's response changes when demographic information is added, compared to a baseline response with no demographics. Calculated as <code>1 - cosine_similarity(...)</code>. <strong class="emphasis-high">Higher values indicate greater semantic shift</strong>.</li>
+            <li><strong>Win Rate (Quality):</strong> Measures the perceived quality of the demographically-prompted response compared to the baseline. Assessed by an LLM judge based on <strong>Helpfulness, Honesty, and Harmlessness (HHH)</strong>.
+                <ul>
+                     <li><strong class="emphasis-positive">Win Rate = 1:</strong> Demog. response preferred.</li>
+                     <li><strong class="emphasis-neutral">Win Rate = 0.5:</strong> Draw.</li>
+                     <li><strong class="emphasis-negative">Win Rate = 0:</strong> Baseline response preferred.</li>
+                </ul>
+                 Values <strong class="emphasis-positive">> 0.5</strong> suggest comparatively <strong>better</strong> quality; values <strong class="emphasis-negative">< 0.5</strong> suggest a comparative <strong>drop</strong>.
+            </li>
+        </ul>
+         <h3>How to Use:</h3>
+         <ol>
+            <li>Use the dropdown menus to select the LLM <strong>Model</strong>, the <strong>Metric</strong>, and filter by <strong>Power Disparity</strong>.</li>
+            <li>Explore the <button class="inline-toggle" data-target="scenarios-list-container">Scenarios</button> and <button class="inline-toggle" data-target="demographics-list-container">Demographics</button> lists for context.</li>
+            <li>The heatmap shows the average metric for each SUB vs RES <span class="info-link" data-target-id="demographics-list-container" data-highlight-type="section">demographic</span> combination.</li>
+            <li>Hover over a cell for details. Click a non-mean cell to open the pop-up with sample data points.</li>
+        </ol>
+    </div>
+
+    <!-- Scenarios List Section -->
+    <div id="scenarios-list-container" class="collapsible-section list-container">
+         <button class="sticky-close-button" data-target="scenarios-list-container">Hide Scenarios ×</button>
+        <h2>Scenario Explorer (<span id="scenario-count">0</span> total)</h2>
+        <p>Scenarios grouped by contextual dimension.</p>
+        <div class="list-controls">
+             <label for="scenario-filter">Filter by keyword or ID:</label>
+             <input type="text" id="scenario-filter" placeholder="e.g., hiring, 42, neighbor...">
+        </div>
+        <div id="scenarios-list">
+            <p>Loading scenarios...</p> <!-- Placeholder -->
+        </div>
+    </div>
+
+    <!-- Demographics List Section -->
+    <div id="demographics-list-container" class="collapsible-section list-container">
+         <button class="sticky-close-button" data-target="demographics-list-container">Hide Demographics ×</button>
+        <h2>Demographic Axes and Identities</h2>
+        <div id="demographics-list">
+            <p>Loading demographics...</p> <!-- Placeholder -->
+        </div>
+    </div>
+
+    <!-- Heatmap Controls -->
+    <div id="controls">
+        <label for="model-select">Select Model:</label>
+        <select id="model-select"></select>
+
+        <label for="metric-select">Select Metric:</label>
+        <select id="metric-select">
+            <option value="cosine_dist_from_no_demog">Cosine Distance (Sensitivity)</option>
+            <option value="score">Win Rate (Quality)</option>
+        </select>
+
+        <label for="power-select">Power Disparity:</label>
+        <select id="power-select">
+            <option value="all">All Scenarios</option>
+            <option value="1">Power Disparity Present (1)</option>
+            <option value="0">No Power Disparity (0)</option>
+        </select>
+    </div>
+
+    <!-- Plotly Heatmap Container -->
+    <div id="plotly-heatmap"></div>
+
+    <!-- Full Screen Modal Structure -->
+    <div id="modal-overlay" class="modal-hidden">
+        <div id="modal-content">
+            <!-- Content goes inside here -->
+            <h3 id="modal-title">Detailed Examples</h3>
+            <div id="modal-body">
+                <!-- Dynamic content will be loaded here -->
+            </div>
+            <button id="modal-load-more" style="display: none;">Load More Examples</button>
+        </div>
+         <!-- Close button is outside content, part of the overlay, for fixed positioning -->
+         <button id="modal-close">×</button>
+    </div>
+
+    <!-- Load Libraries -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <!-- Load Custom Script -->
+    <script src="main.js"></script>
+</body>
+</html>
