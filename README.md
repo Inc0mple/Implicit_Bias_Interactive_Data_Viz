@@ -1,12 +1,10 @@
 # LLM Implicit Bias Interactive Visualisation
 
-[![GitHub Pages](https://img.shields.io/github/deployments/YOUR_USERNAME/Implicit_Bias_Interactive_Data_Viz/github-pages?label=GitHub%20Pages&style=flat-square)](https://inc0mple.github.io/Implicit_Bias_Interactive_Data_Viz/) 
+[![GitHub Pages](https://img.shields.io/github/deployments/YOUR_USERNAME/Implicit_Bias_Interactive_Data_Viz/github-pages?label=GitHub%20Pages&style=flat-square)](https://inc0mple.github.io/Implicit_Bias_Interactive_Data_Viz/) [![arXiv](https://img.shields.io/badge/arXiv-2503.01532-b31b1b.svg?style=flat-square)](https://arxiv.org/abs/2503.01532)
 
 This project provides an interactive web-based visualisation exploring the findings of the research paper:
 
 **"Unmasking Implicit Bias: Evaluating Persona-Prompted LLM Responses in Power-Disparate Social Scenarios"**
-
-[![arXiv](https://img.shields.io/badge/arXiv-2503.01532-b31b1b.svg?style=flat-square)](https://arxiv.org/abs/2503.01532)
 
 ## Overview
 
