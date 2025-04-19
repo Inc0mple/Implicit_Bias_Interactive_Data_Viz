@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LLM Implicit Bias Visualization (Plotly)</title>
+    <title>LLM Implicit Bias Visualisation (Plotly)</title>
     <link rel="stylesheet" href="style.css">
     <!-- Load Plotly.js library -->
     <script src="https://cdn.plot.ly/plotly-3.0.1.min.js" charset="utf-8"></script>
@@ -21,7 +21,7 @@
     <!-- Preamble Section -->
     <div id="preamble" class="collapsible-section">
         <button class="sticky-close-button" data-target="preamble">Hide Info ×</button>
-        <h2>About This Visualization</h2>
+        <h2>About This Visualisation</h2>
         <p>This interactive tool explores potential implicit biases in Large Language Models (LLMs) based on the findings of the paper: <a href="https://arxiv.org/abs/2503.01532" target="_blank" rel="noopener noreferrer"><em>"Unmasking Implicit Bias: Evaluating Persona-Prompted LLM Responses in Power-Disparate Social Scenarios"</em></a></p>
         <p>LLMs were prompted to respond in simulated <span class="info-link" data-target-id="scenarios-list-container" data-highlight-type="section">social scenarios</span> involving two personas: a <strong>Subject (SUB, "Alex")</strong> initiating an interaction, and a <strong>Responder (RES, "Blake")</strong> reacting. Different <span class="info-link" data-target-id="demographics-list-container" data-highlight-type="section">demographic identities</span> (e.g., <span class="info-link" data-target-id="demographic-Race">Race</span>, <span class="info-link" data-target-id="demographic-Age">Age</span>, <span class="info-link" data-target-id="demographic-Gender Identity">Gender</span>) were assigned to these personas.</p>
         <h3>Metrics Explored:</h3>
