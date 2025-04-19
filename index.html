@@ -11,9 +11,10 @@
 <body>
     <h1>Unmasking Implicit Bias in LLMs</h1>
 
-    <!-- Global Controls to toggle main sections -->
+    <!-- Global Controls to toggle main informational sections -->
     <div id="global-controls">
         <button class="toggle-button" data-target="preamble">Show Project Info</button>
+        <button class="toggle-button" data-target="overall-findings">Show Overall Findings</button> <!-- Added -->
         <button class="toggle-button" data-target="scenarios-list-container">Show Scenarios List</button>
         <button class="toggle-button" data-target="demographics-list-container">Show Demographics List</button>
     </div>
@@ -22,8 +23,8 @@
     <div id="preamble" class="collapsible-section">
         <button class="sticky-close-button" data-target="preamble">Hide Info ×</button>
         <h2>About This Visualisation</h2>
-        <p>This interactive tool explores potential implicit biases in Large Language Models (LLMs) based on the findings of the paper: <a href="https://arxiv.org/abs/2503.01532" target="_blank" rel="noopener noreferrer"><em>"Unmasking Implicit Bias: Evaluating Persona-Prompted LLM Responses in Power-Disparate Social Scenarios"</em></a></p>
-        <p>LLMs were prompted to respond in simulated <span class="info-link" data-target-id="scenarios-list-container" data-highlight-type="section">social scenarios</span> involving two personas: a <strong>Subject (SUB, "Alex")</strong> initiating an interaction, and a <strong>Responder (RES, "Blake")</strong> reacting. Different <span class="info-link" data-target-id="demographics-list-container" data-highlight-type="section">demographic identities</span> (e.g., <span class="info-link" data-target-id="demographic-Race">Race</span>, <span class="info-link" data-target-id="demographic-Age">Age</span>, <span class="info-link" data-target-id="demographic-Gender Identity">Gender</span>) were assigned to these personas.</p>
+        <p>This interactive tool explores potential implicit biases in Large Language Models (LLMs) based on the findings of the paper: <a href="https://arxiv.org/abs/2503.01532" target="_blank" rel="noopener noreferrer"><em>"Unmasking Implicit Bias: Evaluating Persona-Prompted LLM Responses in Power-Disparate Social Scenarios"</em></a> (arXiv:2503.01532).</p>
+        <p>LLMs were prompted to respond in simulated <span class="info-link" data-target-id="scenarios-list-container" data-highlight-type="section">social scenarios</span> involving two personas: a <strong>Subject (SUB, "Alex")</strong> initiating an interaction, and a <strong>Responder (RES, "Blake")</strong> reacting. Different <span class="info-link" data-target-id="demographics-list-container" data-highlight-type="section">demographic identities</span> (e.g., <span class="info-link" data-target-id="demographic-Race">Race</span>, <span class="info-link" data-target-id="demographic-Age">Age</span>, <span class="info-link" data-target-id="demographic-Gender-Identity">Gender Identity</span>) were assigned to these personas.</p>
         <h3>Metrics Explored:</h3>
         <ul>
             <li><strong>Cosine Distance (Sensitivity):</strong> Measures how much the <em>meaning</em> (semantics) of the LLM's response changes when demographic information is added, compared to a baseline response with no demographics. Calculated as <code>1 - cosine_similarity(...)</code>. <strong class="emphasis-high">Higher values indicate greater semantic shift</strong>.</li>
@@ -39,10 +40,29 @@
          <h3>How to Use:</h3>
          <ol>
             <li>Use the dropdown menus to select the LLM <strong>Model</strong>, the <strong>Metric</strong>, and filter by <strong>Power Disparity</strong>.</li>
-            <li>Explore the <button class="inline-toggle" data-target="scenarios-list-container">Scenarios</button> and <button class="inline-toggle" data-target="demographics-list-container">Demographics</button> lists for context.</li>
-            <li>The heatmap shows the average metric for each SUB vs RES <span class="info-link" data-target-id="demographics-list-container" data-highlight-type="section">demographic</span> combination.</li>
+            <li>Explore the <button class="inline-toggle" data-target="scenarios-list-container">Scenarios</button>, <button class="inline-toggle" data-target="demographics-list-container">Demographics</button>, and <button class="inline-toggle" data-target="overall-findings">Overall Findings</button> sections for context.</li> <!-- Updated -->
+            <li>The heatmap shows the average metric for each SUB vs RES <span class="info-link" data-target-id="demographics-list-container" data-highlight-type="section">demographic</span> combination. Note the X (Responder) and Y (Subject) axes.</li> <!-- Added Axis mention -->
             <li>Hover over a cell for details. Click a non-mean cell to open the pop-up with sample data points.</li>
-        </ol>
+            <li>Below the heatmap controls, dynamic interpretations highlight the highest and lowest scoring pairs for the selected view.</li> <!-- Updated -->
+         </ol>
+    </div>
+
+    <!-- NEW: Overall Findings Section -->
+    <div id="overall-findings" class="collapsible-section">
+        <button class="sticky-close-button" data-target="overall-findings">Hide Findings ×</button>
+        <h2>Key Findings From The Paper</h2>
+        <p>These are general trends observed across the models and scenarios studied:</p>
+        <ul>
+            <li><strong>Default Persona Bias:</strong> LLM responses often implicitly lean towards a "default persona" resembling a <strong>middle-aged, able-bodied, native-born, Caucasian, atheistic male with centrist political views</strong>. This means responses might change less (lower Cosine Distance) or be judged differently when personas match this default compared to when they deviate.</li>
+            <li><strong>Response Quality Variation:</strong> Interactions involving certain specific demographics were associated with comparatively lower-quality responses (lower Win Rate vs. baseline).</li>
+            <li><strong>Impact of Power Disparity:</strong>
+                <ul>
+                    <li>The presence of power disparities between the Subject (SUB) and Responder (RES) tends to <strong>increase the variability</strong> in both response meaning (Cosine Distance) and quality (Win Rate) across different demographic groups.</li>
+                    <li>This suggests that implicit biases might be more pronounced or activated under conditions of unequal power.</li>
+                </ul>
+             </li>
+        </ul>
+        <p><em>Note: These are general findings based on the study's overall dataset. Explore the heatmap and specific interpretations below for model-specific details under different conditions.</em></p>
     </div>
 
     <!-- Scenarios List Section -->
@@ -68,45 +88,41 @@
         </div>
     </div>
 
-    <!-- Heatmap Controls -->
-    <div id="controls">
-        <label for="model-select">Select Model:</label>
-        <select id="model-select"></select>
-
-        <label for="metric-select">Select Metric:</label>
-        <select id="metric-select">
-            <option value="cosine_dist_from_no_demog">Cosine Distance (Sensitivity)</option>
-            <option value="score">Win Rate (Quality)</option>
-        </select>
-
-        <label for="power-select">Power Disparity:</label>
-        <select id="power-select">
-            <option value="all">All Scenarios</option>
-            <option value="1">Power Disparity Present (1)</option>
-            <option value="0">No Power Disparity (0)</option>
-        </select>
-    </div>
-
-    <!-- Plotly Heatmap Container -->
-    <div id="plotly-heatmap"></div>
-
-    <!-- Full Screen Modal Structure -->
-    <div id="modal-overlay" class="modal-hidden">
-        <div id="modal-content">
-            <!-- Content goes inside here -->
-            <h3 id="modal-title">Detailed Examples</h3>
-            <div id="modal-body">
-                <!-- Dynamic content will be loaded here -->
-            </div>
-            <button id="modal-load-more" style="display: none;">Load More Examples</button>
+    <!-- ** MOVED ** Heatmap Interpretations Container (ABOVE Controls) -->
+    <div id="heatmap-interpretations" class="collapsible-section interpretations-container">
+        <!--  <button class="sticky-close-button" data-target="heatmap-interpretations">Hide Interpretations ×</button> -->
+        <h3 id="interpretations-title">Heatmap Interpretations</h3>
+        <div id="interpretations-content">
+            <p>Select a Model, Metric, and Power Filter to view interpretations.</p>
         </div>
-         <!-- Close button is outside content, part of the overlay, for fixed positioning -->
-         <button id="modal-close">×</button>
     </div>
 
-    <!-- Load Libraries -->
-    <script src="https://d3js.org/d3.v7.min.js"></script>
-    <!-- Load Custom Script -->
-    <script src="main.js"></script>
+   <!-- Heatmap Controls (Now Below Interpretations) -->
+   <div id="controls">
+       <label for="model-select">Select Model:</label>
+       <select id="model-select"></select>
+       <label for="metric-select">Select Metric:</label>
+       <select id="metric-select"> <option value="cosine_dist_from_no_demog">Cosine Distance (Sensitivity)</option> <option value="score">Win Rate (Quality)</option> </select>
+       <label for="power-select">Power Disparity:</label>
+       <select id="power-select"> <option value="all">All Scenarios</option> <option value="1">Power Disparity Present (1)</option> <option value="0">No Power Disparity (0)</option> </select>
+   </div>
+
+   <!-- Plotly Heatmap Container -->
+   <div id="plotly-heatmap"></div>
+
+   <!-- Full Screen Modal Structure -->
+   <div id="modal-overlay" class="modal-hidden">
+       <div id="modal-content">
+           <h3 id="modal-title">Detailed Examples</h3>
+           <div id="modal-body"> <!-- Dynamic content --> </div>
+           <button id="modal-load-more" style="display: none;">Load More Examples</button>
+       </div>
+       <button id="modal-close">×</button>
+   </div>
+
+   <!-- Load Libraries -->
+   <script src="https://d3js.org/d3.v7.min.js"></script>
+   <!-- Load Custom Script -->
+   <script src="main.js"></script>
 </body>
 </html>
