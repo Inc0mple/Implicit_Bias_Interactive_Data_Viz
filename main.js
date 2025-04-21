@@ -249,13 +249,17 @@ function populateScenarioList() {
 function populateDemographicsList() {
     let html = '';
     const sortedAxes = Object.keys(demographicsStructure).sort();
+
     for (const axis of sortedAxes) {
         const axisId = axis.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, ''); // Create safe ID
-        html += `<div class="demographic-axis" id="demographic-${axisId}">`;
-        html += `<h3>${axis}</h3>`;
-        html += `<ul>`;
-        demographicsStructure[axis].sort().forEach(identity => { html += `<li>${identity}</li>`; });
-        html += `</ul>`;
+        const identities = demographicsStructure[axis].sort(); // Get sorted identities
+        const identitiesString = identities.join(', '); // Join identities with a comma and space
+
+        // Use a single div per axis, place title and identities inside
+        html += `<div class="demographic-axis compact" id="demographic-${axisId}">`; // Added 'compact' class
+        // Use <strong> for the title and put identities directly after
+        html += `<strong>${axis}:</strong> `;
+        html += `<span class="identity-list">${identitiesString}</span>`; // Wrap identities in a span
         html += `</div>`;
     }
     demographicsListDiv.innerHTML = html;
@@ -363,267 +367,138 @@ function generateAndDisplayInterpretations(currentAggData, currentDemogMap, metr
 // --- Plotting Function ---
 /** Updates the Plotly heatmap visualization and interpretations */
 function updateVisualization() {
+    // ... (Setup: selectedModel, selectedMetricKey, selectedPowerFilter - unchanged) ...
     const selectedModel = modelSelect.node().value;
     const selectedMetricKey = metricSelect.node().value;
     const selectedPowerFilter = powerSelect.node().value;
 
+    // ... (Get aggregated data: modelPowerAggData - unchanged) ...
     const modelPowerAggData = aggregatedData[selectedModel]?.[selectedPowerFilter];
-    if (!modelPowerAggData || Object.keys(modelPowerAggData).length === 0) {
-        Plotly.purge(plotlyDivId);
-        plotlyDiv.innerHTML = "<p>No data available for this selection.</p>";
-        interpretationsContent.innerHTML = "<p>No data available for interpretation.</p>"; // Clear interpretations
-        overallMeanSpan.textContent = 'N/A'; // Clear summary stats
-        overallStdevSpan.textContent = 'N/A';
-        closeModal(); // Ensure modal is closed if plot is cleared
-        return;
-    }
+    if (!modelPowerAggData || Object.keys(modelPowerAggData).length === 0) { Plotly.purge(plotlyDivId); plotlyDiv.innerHTML = "<p>No data available.</p>"; interpretationsContent.innerHTML = "<p>No data available for interpretation.</p>"; overallMeanSpan.textContent = 'N/A'; overallStdevSpan.textContent = 'N/A'; closeModal(); return; }
 
-    // --- Calculate Dynamic Cosine Distance Range ---
-    let dynamicZmin = DEFAULT_COSINE_MIN;
-    let dynamicZmax = DEFAULT_COSINE_MAX;
-    if (selectedMetricKey === 'cosine_dist_from_no_demog') {
-        let minCos = Infinity, maxCos = -Infinity, foundValue = false;
-        Object.values(modelPowerAggData).forEach(entry => {
-            const cosValue = entry.avgCos;
-            if (cosValue !== null && !isNaN(cosValue)) {
-                minCos = Math.min(minCos, cosValue);
-                maxCos = Math.max(maxCos, cosValue);
-                foundValue = true;
-            }
-        });
-        if (foundValue) {
-            dynamicZmin = Math.max(0, Math.floor(minCos / 0.05) * 0.05);
-            dynamicZmax = Math.ceil(maxCos / 0.05) * 0.05;
-            if (dynamicZmax <= dynamicZmin) { dynamicZmax = dynamicZmin + 0.05; }
-            console.log(`Dynamic Cosine Range for ${selectedModel} (${selectedPowerFilter}): [${dynamicZmin.toFixed(2)}, ${dynamicZmax.toFixed(2)}]`);
-        } else {
-             console.log(`No valid cosine data for ${selectedModel} (${selectedPowerFilter}), using default range.`);
-        }
-    }
-    // --- End Dynamic Range Calculation ---
+    // ... (Calculate Dynamic Range - unchanged) ...
+    let dynamicZmin = DEFAULT_COSINE_MIN; let dynamicZmax = DEFAULT_COSINE_MAX; if (selectedMetricKey === 'cosine_dist_from_no_demog') { let minCos = Infinity, maxCos = -Infinity, found = false; Object.values(modelPowerAggData).forEach(e => { if (e.avgCos !== null && !isNaN(e.avgCos)) { minCos = Math.min(minCos, e.avgCos); maxCos = Math.max(maxCos, e.avgCos); found = true; } }); if (found) { dynamicZmin = Math.max(0, Math.floor(minCos / 0.05) * 0.05); dynamicZmax = Math.ceil(maxCos / 0.05) * 0.05; if (dynamicZmax <= dynamicZmin) dynamicZmax = dynamicZmin + 0.05; } }
 
+    // ... (Determine metric info - unchanged) ...
+    if (selectedMetricKey === 'cosine_dist_from_no_demog') { currentMetricInfo = { key: 'avgCos', label: 'Avg Cosine Distance', colorscale: cosineColorScale, zmin: dynamicZmin, zmax: dynamicZmax }; } else { currentMetricInfo = { key: 'avgScore', label: 'Avg Win Rate', colorscale: winRateColorScale, zmin: 0, zmax: 1 }; }
 
-    // Determine metric info
-    if (selectedMetricKey === 'cosine_dist_from_no_demog') { currentMetricInfo = { key: 'avgCos', label: 'Avg Cosine Distance', colorscale: cosineColorScale, zmin: dynamicZmin, zmax: dynamicZmax }; }
-    else { currentMetricInfo = { key: 'avgScore', label: 'Avg Win Rate', colorscale: winRateColorScale, zmin: 0, zmax: 1 }; }
+    // ... (Prepare Data & Get Demog Map - unchanged) ...
+    const currentKeys = Object.keys(modelPowerAggData); const currentSubLabelsSet = new Set(currentKeys.map(k => k.split('||')[0])); const currentResLabelsSet = new Set(currentKeys.map(k => k.split('||')[1])); const relevantRawDataForView = rawData.filter(d => d.model_abbrv === selectedModel && (selectedPowerFilter === 'all' || String(d.power_differential) === selectedPowerFilter) && currentSubLabelsSet.has(d.sub_persona_demog) && currentResLabelsSet.has(d.res_persona_demog)); const currentDemogMap = {}; relevantRawDataForView.forEach(d => { if (d.sub_persona_demog && d.demographic_dim) currentDemogMap[d.sub_persona_demog] = d.demographic_dim; if (d.res_persona_demog && d.demographic_dim) currentDemogMap[d.res_persona_demog] = d.demographic_dim; });
+    const sortedSubLabels = getSortedLabels(relevantRawDataForView, 'sub_persona_demog', currentDemogMap); const sortedResLabels = getSortedLabels(relevantRawDataForView, 'res_persona_demog', currentDemogMap); const subMeanLabel = 'RES Mean across all SUB'; const resMeanLabel = 'SUB Mean across all RES'; const yLabelsOriginalOrder = [...sortedSubLabels, subMeanLabel]; const xLabels = [...sortedResLabels, resMeanLabel]; const zValuesOriginalOrder = Array(yLabelsOriginalOrder.length).fill(null).map(() => Array(xLabels.length).fill(NaN)); const hoverTextOriginalOrder = Array(yLabelsOriginalOrder.length).fill(null).map(() => Array(xLabels.length).fill('')); const customDataOriginalOrder = Array(yLabelsOriginalOrder.length).fill(null).map(() => Array(xLabels.length).fill(null)); const yIndexMap = new Map(yLabelsOriginalOrder.map((lbl, i) => [lbl, i])); const xIndexMap = new Map(xLabels.map((lbl, i) => [lbl, i]));
+    for (const key in modelPowerAggData) { const [sub, res] = key.split('||'); const dataPoint = modelPowerAggData[key]; const metricValue = dataPoint[currentMetricInfo.key]; const count = dataPoint.count; const rowIndex = yIndexMap.get(sub); const colIndex = xIndexMap.get(res); if (rowIndex !== undefined && colIndex !== undefined) { const displayValue = isNaN(metricValue) ? null : metricValue; zValuesOriginalOrder[rowIndex][colIndex] = displayValue; hoverTextOriginalOrder[rowIndex][colIndex] = `<b>SUB:</b> ${sub}<br><b>RES:</b> ${res}<br><b>${currentMetricInfo.label}:</b> ${displayValue === null ? 'N/A' : displayValue.toFixed(3)}<br><b>Count:</b> ${count}`; customDataOriginalOrder[rowIndex][colIndex] = { sub: sub, res: res, value: metricValue, count: count, isMean: false }; } } const rowMeanIndex = yIndexMap.get(subMeanLabel); const colMeanIndex = xIndexMap.get(resMeanLabel); for (let i = 0; i < sortedSubLabels.length; i++) { const sub = sortedSubLabels[i]; let sum = 0, totalCount = 0; for (let j = 0; j < sortedResLabels.length; j++) { const res = sortedResLabels[j]; const key = `${sub}||${res}`; if (modelPowerAggData[key]) { const val = modelPowerAggData[key][currentMetricInfo.key]; const cnt = modelPowerAggData[key].count; if (!isNaN(val) && cnt > 0) { sum += val * cnt; totalCount += cnt; } } } const mean = totalCount > 0 ? sum / totalCount : NaN; const displayMean = isNaN(mean) ? null : mean; zValuesOriginalOrder[i][colMeanIndex] = displayMean; hoverTextOriginalOrder[i][colMeanIndex] = `<b>SUB:</b> ${sub}<br><b>RES:</b> Mean<br><b>${currentMetricInfo.label}:</b> ${displayMean === null ? 'N/A' : displayMean.toFixed(3)}<br><b>Total Count:</b> ${totalCount}`; customDataOriginalOrder[i][colMeanIndex] = { sub: sub, res: resMeanLabel, value: mean, count: totalCount, isMean: true, meanType: 'row' }; } for (let j = 0; j < sortedResLabels.length; j++) { const res = sortedResLabels[j]; let sum = 0, totalCount = 0; for (let i = 0; i < sortedSubLabels.length; i++) { const sub = sortedSubLabels[i]; const key = `${sub}||${res}`; if (modelPowerAggData[key]) { const val = modelPowerAggData[key][currentMetricInfo.key]; const cnt = modelPowerAggData[key].count; if (!isNaN(val) && cnt > 0) { sum += val * cnt; totalCount += cnt; } } } const mean = totalCount > 0 ? sum / totalCount : NaN; const displayMean = isNaN(mean) ? null : mean; zValuesOriginalOrder[rowMeanIndex][j] = displayMean; hoverTextOriginalOrder[rowMeanIndex][j] = `<b>SUB:</b> Mean<br><b>RES:</b> ${res}<br><b>${currentMetricInfo.label}:</b> ${displayMean === null ? 'N/A' : displayMean.toFixed(3)}<br><b>Total Count:</b> ${totalCount}`; customDataOriginalOrder[rowMeanIndex][j] = { sub: subMeanLabel, res: res, value: mean, count: totalCount, isMean: true, meanType: 'column' }; } let grandSum = 0, grandCount = 0; for(const key in modelPowerAggData){ const val = modelPowerAggData[key][currentMetricInfo.key]; const cnt = modelPowerAggData[key].count; if (!isNaN(val) && cnt > 0) { grandSum += val * cnt; grandCount += cnt; } } const grandMean = grandCount > 0 ? grandSum / grandCount : NaN; const displayGrandMean = isNaN(grandMean) ? null : grandMean; zValuesOriginalOrder[rowMeanIndex][colMeanIndex] = displayGrandMean; hoverTextOriginalOrder[rowMeanIndex][colMeanIndex] = `<b>SUB:</b> Mean<br><b>RES:</b> Mean<br><b>${currentMetricInfo.label}:</b> ${displayGrandMean === null ? 'N/A' : displayGrandMean.toFixed(3)}<br><b>Total Count:</b> ${grandCount}`; customDataOriginalOrder[rowMeanIndex][colMeanIndex] = { sub: subMeanLabel, res: resMeanLabel, value: grandMean, count: grandCount, isMean: true, meanType: 'grand' };
+    const yLabels = [...yLabelsOriginalOrder].reverse(); const zValues = [...zValuesOriginalOrder].reverse(); const hoverText = [...hoverTextOriginalOrder].reverse(); const customData = [...customDataOriginalOrder].reverse();
 
-    // Prepare Data & Get Demog Map
-    const currentKeys = Object.keys(modelPowerAggData); const currentSubLabelsSet = new Set(currentKeys.map(k => k.split('||')[0])); const currentResLabelsSet = new Set(currentKeys.map(k => k.split('||')[1]));
-    const relevantRawDataForView = rawData.filter(d => d.model_abbrv === selectedModel && (selectedPowerFilter === 'all' || String(d.power_differential) === selectedPowerFilter) && currentSubLabelsSet.has(d.sub_persona_demog) && currentResLabelsSet.has(d.res_persona_demog));
-    const currentDemogMap = {}; relevantRawDataForView.forEach(d => { if (d.sub_persona_demog && d.demographic_dim) currentDemogMap[d.sub_persona_demog] = d.demographic_dim; if (d.res_persona_demog && d.demographic_dim) currentDemogMap[d.res_persona_demog] = d.demographic_dim; });
-    const sortedSubLabels = getSortedLabels(relevantRawDataForView, 'sub_persona_demog', currentDemogMap); const sortedResLabels = getSortedLabels(relevantRawDataForView, 'res_persona_demog', currentDemogMap); const subMeanLabel = 'RES Mean across all SUB'; const resMeanLabel = 'SUB Mean across all RES';
-    const yLabelsOriginalOrder = [...sortedSubLabels, subMeanLabel]; const xLabels = [...sortedResLabels, resMeanLabel];
-    const zValuesOriginalOrder = Array(yLabelsOriginalOrder.length).fill(null).map(() => Array(xLabels.length).fill(NaN)); const hoverTextOriginalOrder = Array(yLabelsOriginalOrder.length).fill(null).map(() => Array(xLabels.length).fill('')); const customDataOriginalOrder = Array(yLabelsOriginalOrder.length).fill(null).map(() => Array(xLabels.length).fill(null));
-    const yIndexMap = new Map(yLabelsOriginalOrder.map((lbl, i) => [lbl, i])); const xIndexMap = new Map(xLabels.map((lbl, i) => [lbl, i]));
-
-    // Populate matrices for non-mean cells
-    for (const key in modelPowerAggData) {
-        const [sub, res] = key.split('||'); const dataPoint = modelPowerAggData[key]; const metricValue = dataPoint[currentMetricInfo.key]; const count = dataPoint.count; const rowIndex = yIndexMap.get(sub); const colIndex = xIndexMap.get(res);
-        if (rowIndex !== undefined && colIndex !== undefined) {
-             const displayValue = isNaN(metricValue) ? null : metricValue;
-             zValuesOriginalOrder[rowIndex][colIndex] = displayValue;
-             hoverTextOriginalOrder[rowIndex][colIndex] = `<b>SUB:</b> ${sub}<br><b>RES:</b> ${res}<br><b>${currentMetricInfo.label}:</b> ${displayValue === null ? 'N/A' : displayValue.toFixed(3)}<br><b>Count:</b> ${count}`; // Count already here
-             customDataOriginalOrder[rowIndex][colIndex] = { sub: sub, res: res, value: metricValue, count: count, isMean: false };
-         }
-    }
-
-    // Calculate and add means (Row, Column, Grand)
-    const rowMeanIndex = yIndexMap.get(subMeanLabel); const colMeanIndex = xIndexMap.get(resMeanLabel);
-
-    // Row means (Mean for SUB across RES) -> Place in the "SUB Mean across all RES" column
-    for (let i = 0; i < sortedSubLabels.length; i++) {
-        const sub = sortedSubLabels[i]; let sum = 0, totalCount = 0; // Keep track of total count for this row mean
-        for (let j = 0; j < sortedResLabels.length; j++) { const res = sortedResLabels[j]; const key = `${sub}||${res}`; if (modelPowerAggData[key]) { const val = modelPowerAggData[key][currentMetricInfo.key]; const cnt = modelPowerAggData[key].count; if (!isNaN(val) && cnt > 0) { sum += val * cnt; totalCount += cnt; } } } // <-- totalCount is calculated here
-        const mean = totalCount > 0 ? sum / totalCount : NaN; const displayMean = isNaN(mean) ? null : mean;
-        zValuesOriginalOrder[i][colMeanIndex] = displayMean;
-        // ** MODIFIED hoverText for row mean **
-        hoverTextOriginalOrder[i][colMeanIndex] = `<b>SUB:</b> ${sub}<br><b>RES:</b> Mean<br><b>${currentMetricInfo.label}:</b> ${displayMean === null ? 'N/A' : displayMean.toFixed(3)}<br><b>Total Count:</b> ${totalCount}`;
-        // ** MODIFIED customData for row mean **
-        customDataOriginalOrder[i][colMeanIndex] = { sub: sub, res: resMeanLabel, value: mean, count: totalCount, isMean: true, meanType: 'row' };
-    }
-
-    // Column means (Mean for RES across SUB) -> Place in the "RES Mean across all SUB" row
-    for (let j = 0; j < sortedResLabels.length; j++) {
-        const res = sortedResLabels[j]; let sum = 0, totalCount = 0; // Keep track of total count for this column mean
-        for (let i = 0; i < sortedSubLabels.length; i++) { const sub = sortedSubLabels[i]; const key = `${sub}||${res}`; if (modelPowerAggData[key]) { const val = modelPowerAggData[key][currentMetricInfo.key]; const cnt = modelPowerAggData[key].count; if (!isNaN(val) && cnt > 0) { sum += val * cnt; totalCount += cnt; } } } // <-- totalCount is calculated here
-        const mean = totalCount > 0 ? sum / totalCount : NaN; const displayMean = isNaN(mean) ? null : mean;
-        zValuesOriginalOrder[rowMeanIndex][j] = displayMean;
-        // ** MODIFIED hoverText for column mean **
-        hoverTextOriginalOrder[rowMeanIndex][j] = `<b>SUB:</b> Mean<br><b>RES:</b> ${res}<br><b>${currentMetricInfo.label}:</b> ${displayMean === null ? 'N/A' : displayMean.toFixed(3)}<br><b>Total Count:</b> ${totalCount}`;
-        // ** MODIFIED customData for column mean **
-        customDataOriginalOrder[rowMeanIndex][j] = { sub: subMeanLabel, res: res, value: mean, count: totalCount, isMean: true, meanType: 'column' };
-    }
-
-    // Grand mean -> Bottom-right corner
-    let grandSum = 0, grandCount = 0; // Keep track of grand total count
-    for(const key in modelPowerAggData){ const val = modelPowerAggData[key][currentMetricInfo.key]; const cnt = modelPowerAggData[key].count; if (!isNaN(val) && cnt > 0) { grandSum += val * cnt; grandCount += cnt; } } // <-- grandCount is calculated here
-    const grandMean = grandCount > 0 ? grandSum / grandCount : NaN; const displayGrandMean = isNaN(grandMean) ? null : grandMean;
-    zValuesOriginalOrder[rowMeanIndex][colMeanIndex] = displayGrandMean;
-    // ** MODIFIED hoverText for grand mean **
-    hoverTextOriginalOrder[rowMeanIndex][colMeanIndex] = `<b>SUB:</b> Mean<br><b>RES:</b> Mean<br><b>${currentMetricInfo.label}:</b> ${displayGrandMean === null ? 'N/A' : displayGrandMean.toFixed(3)}<br><b>Total Count:</b> ${grandCount}`;
-    // ** MODIFIED customData for grand mean **
-    customDataOriginalOrder[rowMeanIndex][colMeanIndex] = { sub: subMeanLabel, res: resMeanLabel, value: grandMean, count: grandCount, isMean: true, meanType: 'grand' };
-
-    // Flip Y-axis data for correct visual representation
-    const yLabels = [...yLabelsOriginalOrder].reverse();
-    const zValues = [...zValuesOriginalOrder].reverse();
-    const hoverText = [...hoverTextOriginalOrder].reverse(); // Flipped hover text including counts
-    const customData = [...customDataOriginalOrder].reverse(); // Flipped custom data including counts
-
-    // Define Plotly Trace (Uses the updated hoverText)
+    // Define Plotly Trace
     const trace = { z: zValues, x: xLabels, y: yLabels, type: 'heatmap', colorscale: currentMetricInfo.colorscale, zmin: currentMetricInfo.zmin, zmax: currentMetricInfo.zmax, hoverongaps: false, text: hoverText, hoverinfo: 'text', customdata: customData, showscale: true, colorbar: { title: { text: currentMetricInfo.label, side: 'right' } } };
 
-    // Calculate Annotations (Unchanged - annotations don't show count)
+    // Calculate Annotations
     const annotations = []; for (let i = 0; i < yLabels.length; i++) { for (let j = 0; j < xLabels.length; j++) { const value = zValues[i][j]; if (value !== null && !isNaN(value)) { const bgColor = getColorForValue(value, currentMetricInfo.zmin, currentMetricInfo.zmax, currentMetricInfo.colorscale); const luminance = getLuminance(parseColor(bgColor)); const textColor = luminance > LUMINANCE_THRESHOLD ? 'black' : 'white'; annotations.push({ x: xLabels[j], y: yLabels[i], text: value.toFixed(2), showarrow: false, font: { family: 'Arial', size: 15, color: textColor, weight: 'bold' } }); } } }
 
-    // Define Plotly Layout (Includes axis titles)
-    const finalTitle = `Heatmap of ${currentMetricInfo.label} for Model: ${selectedModel}<br>(Power Disparity: ${selectedPowerFilter === 'all' ? 'All' : (selectedPowerFilter === '1' ? 'Present' : 'Absent')})`;
-    const layout = {
-        title: {text: finalTitle,
-            font: { size: 20 }, xanchor: 'center', yanchor: 'top', pad: { t: 20, b: 10 }, x: 0.5, y: 0.95, showarrow: false
-        },
-        xaxis: {
-            title: {
-                text: '<b>Responder Persona Demography (RES)</b>',
-                font: { size: 16 }
-            },
-            tickangle: -45, automargin: true, tickvals: xLabels,
-            ticktext: xLabels.map(lbl => lbl.includes('Mean') ? `<i><b>${lbl}</b></i>` : lbl)
-        },
-        yaxis: {
-            title: {
-                text: '<b>Subject Persona Demography (SUB)</b>',
-                font: { size: 16 }
-            },
-            automargin: true, tickvals: yLabels,
-            ticktext: yLabels.map(lbl => lbl.includes('Mean') ? `<i><b>${lbl}</b></i>` : lbl),
-        },
-        margin: { l: 200, r: 50, b: 150, t: 100, pad: 4 },
-        autosize: true, annotations: annotations
-    };
+    // Define Plotly Layout
+    const layout = { title: `Heatmap of ${currentMetricInfo.label} for Model: ${selectedModel}<br>(Power Disparity: ${selectedPowerFilter === 'all' ? 'All' : (selectedPowerFilter === '1' ? 'Present' : 'Absent')})`, xaxis: { title: { text: '<b>Responder Persona Demographic (RES)</b>', font: { size: 14 } }, tickangle: -45, automargin: true, tickvals: xLabels, ticktext: xLabels.map(lbl => lbl.includes('Mean') ? `<i><b>${lbl}</b></i>` : lbl) }, yaxis: { title: { text: '<b>Subject Persona Demographic (SUB)</b>', font: { size: 14 } }, automargin: true, tickvals: yLabels, ticktext: yLabels.map(lbl => lbl.includes('Mean') ? `<i><b>${lbl}</b></i>` : lbl), }, margin: { l: 200, r: 50, b: 150, t: 100, pad: 4 }, autosize: true, annotations: annotations };
     const config = { responsive: true, displaylogo: false, modeBarButtonsToRemove: ['select2d', 'lasso2d', 'zoomIn2d', 'zoomOut2d', 'autoScale2d', 'resetScale2d'] };
 
     // Create/Update Plot
     Plotly.newPlot(plotlyDivId, [trace], layout, config);
 
-    // --- ** NEW: Calculate and Display Overall Mean/Std Dev ** ---
-    const currentValues = Object.values(modelPowerAggData)
-                               .map(entry => entry[currentMetricInfo.key])
-                               .filter(val => val !== null && !isNaN(val)); // Get only valid numeric values
-    let overallMean = NaN;
-    let overallStdev = NaN;
-    if (currentValues.length > 0) {
-        overallMean = currentValues.reduce((sum, val) => sum + val, 0) / currentValues.length;
-        if (currentValues.length > 1) {
-            const variance = currentValues.reduce((sumSqDiff, val) => sumSqDiff + Math.pow(val - overallMean, 2), 0) / currentValues.length; // Population variance
-            overallStdev = Math.sqrt(variance);
-        } else {
-            overallStdev = 0; // Std dev is 0 if only one point
-        }
-    }
-    // Update the DOM elements
-    overallMeanSpan.textContent = isNaN(overallMean) ? 'N/A' : overallMean.toFixed(3);
-    overallStdevSpan.textContent = isNaN(overallStdev) ? 'N/A' : overallStdev.toFixed(3);
-    // --- End Overall Mean/Std Dev Calculation ---
+    // Calculate and Display Overall Mean/Std Dev
+    const currentValues = Object.values(modelPowerAggData).map(entry => entry[currentMetricInfo.key]).filter(val => val !== null && !isNaN(val));
+    let overallMean = NaN; let overallStdev = NaN;
+    if (currentValues.length > 0) { overallMean = currentValues.reduce((sum, val) => sum + val, 0) / currentValues.length; if (currentValues.length > 1) { const variance = currentValues.reduce((sumSqDiff, val) => sumSqDiff + Math.pow(val - overallMean, 2), 0) / currentValues.length; overallStdev = Math.sqrt(variance); } else { overallStdev = 0; } }
+    overallMeanSpan.textContent = isNaN(overallMean) ? 'N/A' : overallMean.toFixed(3); overallStdevSpan.textContent = isNaN(overallStdev) ? 'N/A' : overallStdev.toFixed(3);
 
     // Generate and Display Interpretations
-    interpretationsTitle.textContent = `Demographic Interaction Summary for ${selectedModel} (${selectedPowerFilter === 'all' ? 'All Scenarios' : (selectedPowerFilter === '1' ? 'Power Disparity' : 'No Power Disparity')})`;
+    interpretationsTitle.textContent = `Interpretations for ${selectedModel} (${selectedPowerFilter === 'all' ? 'All Scenarios' : (selectedPowerFilter === '1' ? 'Power Disparity' : 'No Power Disparity')})`;
     generateAndDisplayInterpretations(modelPowerAggData, currentDemogMap, currentMetricInfo.label, currentMetricInfo.key, selectedModel);
-    
-    // Attach Click Handler for Modal
+
+    // --- ** MODIFIED ** Attach Click Handler for Modal ---
     plotlyDiv.removeAllListeners('plotly_click');
-    plotlyDiv.on('plotly_click', (data) => { if (data.points.length > 0) { const pointData = data.points[0]; const clickedCustomData = pointData.customdata; if (clickedCustomData && !clickedCustomData.isMean) { openModal(selectedModel, clickedCustomData.sub, clickedCustomData.res, selectedPowerFilter); } else if (clickedCustomData && clickedCustomData.isMean) { console.log("Mean cell clicked."); } } });
-}
+    plotlyDiv.on('plotly_click', (data) => {
+        if (data.points.length > 0) {
+            const pointData = data.points[0];
+            const clickedCustomData = pointData.customdata; // Get the data we stored
 
-// --- Modal Functions ---
-
-// **MODIFIED** generateDetailsHtml (Adds Scenario Text + 2-Col Layout Structure)
-function generateDetailsHtml(dataToShow, startIndex = 0) {
-    let detailsHtml = '';
-    dataToShow.forEach((row, i) => {
-        const displayIndex = startIndex + i + 1; // Absolute index for display
-        const scenarioKey = row.final_scenario_id ?? row.scenario_id;
-        const scenarioInfo = scenarioTextMap.get(scenarioKey);
-        const scenarioText = scenarioInfo ? scenarioInfo.text : 'Scenario text not found.';
-        const scenarioLink = `<span class="info-link" data-target-id="scenarios-list-container" data-highlight-scenario="${scenarioKey}">${scenarioKey}</span>`;
-        const subDemogLink = `<span class="info-link" data-target-id="demographic-${row.demographic_dim?.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '')}" data-highlight-identity="${row.sub_persona_demog}">${row.sub_persona_demog}</span>`;
-        const resDemogLink = `<span class="info-link" data-target-id="demographic-${row.demographic_dim?.replace(/\s+/g, '-')?.replace(/[^a-zA-Z0-9-]/g, '')}" data-highlight-identity="${row.res_persona_demog}">${row.res_persona_demog}</span>`;
-
-        const winRate = row.score;
-        let winRateCategory = 'na';
-        if (winRate !== null && !isNaN(winRate)) {
-            if (winRate === 0) winRateCategory = '0';
-            else if (winRate === 0.25) winRateCategory = '025';
-            else if (winRate === 0.5) winRateCategory = '05';
-            else if (winRate === 0.75) winRateCategory = '075';
-            else if (winRate === 1) winRateCategory = '1';
+            // Check if customData exists before trying to access properties
+            if (clickedCustomData) {
+                // Call openModal regardless of whether it's a mean or not,
+                // pass the clickedCustomData so openModal can decide how to filter
+                openModal(selectedModel, clickedCustomData, selectedPowerFilter);
+            } else {
+                console.warn("Click detected, but no custom data found on the point.");
+            }
         }
-
-        // ** MODIFIED HTML Structure **
-        detailsHtml += `
-            <div class="modal-example-item">
-                <p class="item-title"><strong>Sample ${displayIndex} of ${modalCurrentData.length}</strong></p>
-
-                <div class="details-columns">
-                    <div class="details-column">
-                        <p><strong>Scenario ID:</strong> ${scenarioLink}</p>
-                        <p><strong>RES Persona:</strong> ${resDemogLink}</p>
-                    </div>
-                    <div class="details-column">
-                        <p><strong>Power Diff:</strong> ${row.power_differential === 1 ? 'Present (1)' : 'Absent (0)'}</p>
-                        <p><strong>SUB Persona:</strong> ${subDemogLink}</p>
-                    </div>
-                </div>
-
-                <div class="scenario-text-container">
-                    <p><strong>Scenario Text:</strong></p>
-                    <p class="scenario-text-content">${scenarioText}</p>
-                </div>
-
-                <div class="response-container">
-                    <p>
-                        <strong>Demog Response:</strong>
-                        <span class="metric-inline">
-                            (Cos Dist from Non-Demog: <span class="metric-value cosine-value">${row.cosine_dist_from_no_demog?.toFixed(4) ?? 'N/A'}</span> |
-                            Win Rate over Non-Demog: <span class="metric-value winrate-value" data-winrate-value="${winRateCategory}">${winRate?.toFixed(2) ?? 'N/A'}</span>)
-                        </span>
-                        <span class="modal-response demog-resp">${row.response?.trim() || '(No Response)'}</span>
-                    </p>
-                    <p>
-                        <strong>Non-Demog Resp:</strong>
-                        <span class="modal-response baseline-resp">${row.response_non_demog?.trim() || '(No Response)'}</span>
-                    </p>
-                </div>
-
-            </div>`; // End modal-example-item
     });
-    return detailsHtml;
 }
-// **MODIFIED** openModal (Passes startIndex 0)
-function openModal(model, subPersona, resPersona, powerFilter) {
-    modalCurrentData = rawData.filter(row => row.model_abbrv === model && row.sub_persona_demog === subPersona && row.res_persona_demog === resPersona && (powerFilter === 'all' || String(row.power_differential) === powerFilter));
-    if (modalCurrentData.length === 0) { alert("No underlying raw data found."); return; }
-    modalItemsShown = Math.min(ITEMS_PER_LOAD, modalCurrentData.length);
-    modalTitle.textContent = `Examples: ${subPersona} (SUB) vs ${resPersona} (RES)`;
-    modalBody.innerHTML = generateDetailsHtml(modalCurrentData.slice(0, modalItemsShown), 0); // Pass startIndex 0
-    modalLoadMoreBtn.style.display = modalCurrentData.length > modalItemsShown ? 'block' : 'none';
-    modalContent.scrollTop = 0; modalOverlay.classList.add('modal-visible');
-}
-function closeModal() { modalOverlay.classList.remove('modal-visible'); }
-// **MODIFIED** loadMoreModalItems (Fixes append logic and startIndex)
-function loadMoreModalItems() {
-    const newLimit = Math.min(modalItemsShown + ITEMS_PER_LOAD, modalCurrentData.length);
-    if (newLimit > modalItemsShown) {
-        // Generate HTML ONLY for the new items, passing the correct starting index
-        const newItemsHtml = generateDetailsHtml(modalCurrentData.slice(modalItemsShown, newLimit), modalItemsShown);
-        // Append the new HTML, don't replace
-        modalBody.insertAdjacentHTML('beforeend', newItemsHtml);
-        modalItemsShown = newLimit; // Update the count of items shown
-        if (modalItemsShown >= modalCurrentData.length) {
-            modalLoadMoreBtn.style.display = 'none'; // Hide button if all loaded
+
+
+// --- ** MODIFIED ** Modal Functions ---
+
+// generateDetailsHtml remains the same as the previous version
+function generateDetailsHtml(dataToShow, startIndex = 0) { /* ... (unchanged - includes scenario text, 2-col layout, correct index) ... */ let detailsHtml = ''; dataToShow.forEach((row, i) => { const displayIndex = startIndex + i + 1; const scenarioKey = row.final_scenario_id ?? row.scenario_id; const scenarioInfo = scenarioTextMap.get(scenarioKey); const scenarioText = scenarioInfo ? scenarioInfo.text : 'Scenario text not found.'; const scenarioLink = `<span class="info-link" data-target-id="scenarios-list-container" data-highlight-scenario="${scenarioKey}">${scenarioKey}</span>`; const subDemogLink = `<span class="info-link" data-target-id="demographic-${row.demographic_dim?.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '')}" data-highlight-identity="${row.sub_persona_demog}">${row.sub_persona_demog}</span>`; const resDemogLink = `<span class="info-link" data-target-id="demographic-${row.demographic_dim?.replace(/\s+/g, '-')?.replace(/[^a-zA-Z0-9-]/g, '')}" data-highlight-identity="${row.res_persona_demog}">${row.res_persona_demog}</span>`; const winRate = row.score; let winRateCategory = 'na'; if (winRate !== null && !isNaN(winRate)) { if (winRate === 0) winRateCategory = '0'; else if (winRate === 0.25) winRateCategory = '025'; else if (winRate === 0.5) winRateCategory = '05'; else if (winRate === 0.75) winRateCategory = '075'; else if (winRate === 1) winRateCategory = '1'; } detailsHtml += ` <div class="modal-example-item"> <p class="item-title"><strong>Sample ${displayIndex} of ${modalCurrentData.length}</strong></p> <div class="details-columns"> <div class="details-column"> <p><strong>Scenario ID:</strong> ${scenarioLink}</p> <p><strong>Power Diff:</strong> ${row.power_differential === 1 ? 'Present (1)' : 'Absent (0)'}</p> </div> <div class="details-column"> <p><strong>SUB Persona:</strong> ${subDemogLink}</p> <p><strong>RES Persona:</strong> ${resDemogLink}</p> </div> </div> <div class="scenario-text-container"> <p><strong>Scenario Text:</strong></p> <p class="scenario-text-content">${scenarioText}</p> </div> <div class="response-container"> <p> <strong>Demog Response:</strong> <span class="metric-inline"> (Cos Dist: <span class="metric-value cosine-value">${row.cosine_dist_from_no_demog?.toFixed(4) ?? 'N/A'}</span> | Win Rate: <span class="metric-value winrate-value" data-winrate-value="${winRateCategory}">${winRate?.toFixed(2) ?? 'N/A'}</span>) </span> <span class="modal-response demog-resp">${row.response?.trim() || '(No Response)'}</span> </p> <p> <strong>Non-Demog Resp:</strong> <span class="modal-response baseline-resp">${row.response_non_demog?.trim() || '(No Response)'}</span> </p> </div> </div>`; }); return detailsHtml; }
+
+// **MODIFIED** openModal to handle mean cell clicks
+/**
+ * Opens the modal and populates it with details. Handles both regular and mean cell clicks.
+ * @param {string} model - Selected model name.
+ * @param {object} clickData - The customdata object from the clicked heatmap cell.
+ * @param {string} powerFilter - Current power disparity filter ('all', '0', '1').
+ */
+function openModal(model, clickData, powerFilter) {
+    let title = '';
+    let filterConditions = (row) => row.model_abbrv === model && (powerFilter === 'all' || String(row.power_differential) === powerFilter);
+
+    if (clickData.isMean) {
+        // --- Handle Mean Cell Clicks ---
+        if (clickData.meanType === 'row') {
+            // Filter by specific SUB, any RES
+            title = `Examples for Mean: ${clickData.sub} (SUB) across all RES`;
+            filterConditions = (row) => row.model_abbrv === model &&
+                                       row.sub_persona_demog === clickData.sub &&
+                                       (powerFilter === 'all' || String(row.power_differential) === powerFilter);
+        } else if (clickData.meanType === 'column') {
+            // Filter by specific RES, any SUB
+            title = `Examples for Mean: ${clickData.res} (RES) across all SUB`;
+            filterConditions = (row) => row.model_abbrv === model &&
+                                       row.res_persona_demog === clickData.res &&
+                                       (powerFilter === 'all' || String(row.power_differential) === powerFilter);
+        } else if (clickData.meanType === 'grand') {
+            // Filter only by model and power
+            title = `Examples for Overall Mean`;
+            filterConditions = (row) => row.model_abbrv === model &&
+                                       (powerFilter === 'all' || String(row.power_differential) === powerFilter);
+        } else {
+            console.error("Unknown mean type clicked:", clickData.meanType);
+            return; // Don't open modal for unknown mean type
         }
+        // Ensure we don't include rows where sub/res personas might be null/undefined if filtering was too broad
+         modalCurrentData = rawData.filter(row => filterConditions(row) && row.sub_persona_demog && row.res_persona_demog);
+
+    } else {
+        // --- Handle Regular Cell Click ---
+        title = `Examples: ${clickData.sub} (SUB) vs ${clickData.res} (RES)`;
+        modalCurrentData = rawData.filter(row =>
+            filterConditions(row) && // Apply base model/power filter
+            row.sub_persona_demog === clickData.sub &&
+            row.res_persona_demog === clickData.res
+        );
     }
+
+    // --- Common Modal Population Logic ---
+    if (modalCurrentData.length === 0) {
+        alert("No underlying raw data found for this selection.");
+        return;
+    }
+
+    modalItemsShown = Math.min(ITEMS_PER_LOAD, modalCurrentData.length);
+    modalTitle.textContent = title; // Set calculated title
+    modalBody.innerHTML = generateDetailsHtml(modalCurrentData.slice(0, modalItemsShown), 0); // Generate initial HTML
+    modalLoadMoreBtn.style.display = modalCurrentData.length > modalItemsShown ? 'block' : 'none'; // Show/hide load more
+    modalContent.scrollTop = 0; // Scroll to top
+    modalOverlay.classList.add('modal-visible'); // Show modal
 }
+
+function closeModal() { modalOverlay.classList.remove('modal-visible'); }
+function loadMoreModalItems() { const newLimit = Math.min(modalItemsShown + ITEMS_PER_LOAD, modalCurrentData.length); if (newLimit > modalItemsShown) { const newItemsHtml = generateDetailsHtml(modalCurrentData.slice(modalItemsShown, newLimit), modalItemsShown); modalBody.insertAdjacentHTML('beforeend', newItemsHtml); modalItemsShown = newLimit; if (modalItemsShown >= modalCurrentData.length) { modalLoadMoreBtn.style.display = 'none'; } } }
 
 // --- Interactivity Functions ---
 function handleInfoLinkClick(event) { /* ... (unchanged) ... */ const target = event.target.closest('.info-link'); if (!target) return; event.preventDefault(); const targetId = target.dataset.targetId; const targetElement = document.getElementById(targetId); if (targetElement) { if (targetElement.classList.contains('collapsible-section') && !targetElement.classList.contains('visible')) { toggleSectionVisibility(targetId, true); } document.querySelectorAll('.highlight').forEach(el => el.classList.remove('highlight')); let elementToScrollTo = targetElement; if (target.dataset.highlightScenario) { const scenarioEl = document.getElementById(`scenario-${target.dataset.highlightScenario}`); if (scenarioEl) { scenarioEl.classList.add('highlight'); elementToScrollTo = scenarioEl; } } else if (target.dataset.highlightIdentity && targetId.startsWith('demographic-')) { const axisDiv = document.getElementById(targetId); if(axisDiv){ const identityText = target.dataset.highlightIdentity; const listItems = axisDiv.querySelectorAll('li'); listItems.forEach(li => { if(li.textContent.trim() === identityText){ li.classList.add('highlight'); } }); } } else if (target.dataset.highlightType === 'section') { targetElement.classList.add('highlight'); } elementToScrollTo.scrollIntoView({ behavior: 'smooth', block: 'center' }); document.querySelectorAll('.highlight').forEach(el => { setTimeout(() => el.classList.remove('highlight'), 1500); }); } else { console.warn("Target element not found:", targetId); } }

@@ -173,13 +173,48 @@ button.inline-toggle {
 .scenario-item .pd-tag { font-style: italic; color: #a80404; margin-left: 5px; font-weight: bold;}
 .scenario-item.highlight { background-color: #fff3cd !important; border-radius: 3px;}
 
-/* Demographics List Styles */
-#demographics-list { column-count: 2; column-gap: 30px; border-top: 1px solid #eee; padding-top: 10px; }
-.demographic-axis { break-inside: avoid-column; margin-bottom: 20px; padding: 12px; border: 1px solid #e9ecef; border-radius: 6px; background-color: #fff; }
-.demographic-axis h3 { margin-top: 0; margin-bottom: 8px; font-size: 1.05em; padding-bottom: 6px; border-bottom: 1px solid #eee; font-weight: 600; color: #495057; }
-.demographic-axis ul { list-style: none; padding: 0; margin: 0; }
-.demographic-axis li { padding: 3px 0; font-size: 0.9em; }
-.demographic-axis li.highlight { background-color: #e9f5ff !important; font-weight: bold; padding-left: 5px; border-radius: 3px;}
+/* --- ** MODIFIED ** Demographics List Styles --- */
+#demographics-list {
+    column-count: 2; /* Keep columns */
+    column-gap: 25px; /* Reduced gap */
+    border-top: 1px solid #eee;
+    padding-top: 15px;
+    font-size: 0.9em; /* Make overall font smaller */
+}
+
+/* Style for the compact axis container */
+.demographic-axis.compact {
+    break-inside: avoid-column;
+    margin-bottom: 10px; /* Reduced bottom margin */
+    padding: 6px 8px; /* Reduced padding */
+    border: none; /* Remove border if desired for max compactness, or keep light */
+    /* border: 1px solid #f0f0f0; */
+    border-radius: 4px;
+    line-height: 1.45; /* Adjust line height */
+}
+
+/* Style for the Axis Title (now strong) */
+.demographic-axis.compact strong {
+    font-weight: 600;
+    color: #343a40;
+    margin-right: 5px; /* Space after colon */
+}
+
+/* Style for the comma-separated list of identities */
+.demographic-axis.compact .identity-list {
+    color: #555; /* Slightly lighter color for identities */
+}
+
+/* Highlight style for specific identities (if needed by info links) */
+.demographic-axis li.highlight, /* Keep for potential future use */
+.demographic-axis.highlight strong, /* Example: Highlight axis when linked */
+.demographic-axis .identity-list .highlight { /* Needs JS modification to wrap individual identities if needed */
+    background-color: #e9f5ff !important;
+    font-weight: bold;
+    padding: 1px 3px;
+    border-radius: 3px;
+}
+
 
 /* --- Info Link Styles --- */
 .info-link { cursor: pointer; color: #0056b3; border-bottom: 1px dotted #0056b3; transition: background-color 0.2s ease; }
