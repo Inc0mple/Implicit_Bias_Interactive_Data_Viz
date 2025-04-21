@@ -257,6 +257,27 @@ button.inline-toggle {
 .modal-example-item strong { display: inline-block; min-width: 110px; font-weight: 600; color: #333; }
 .modal-example-item .item-title { font-size: 1.05em; color: #0056b3; margin-bottom: 12px; border-bottom: 1px solid #f0f0f0; padding-bottom: 4px; }
 
+/* Container for the inline metrics */
+.metric-inline {
+    display: inline-block; /* Keep metrics together */
+    font-size: 0.85em;    /* Smaller font for metrics */
+    margin-left: 8px;
+    color: #555;
+    vertical-align: middle; /* Align with text if needed */
+    /* Optional: Add background/border if desired */
+    /* background-color: #f0f0f0; */
+    /* padding: 2px 5px; */
+    /* border-radius: 3px; */
+}
+.metric-inline .metric-value { /* Styles for the actual value spans */
+    font-weight: bold;
+    padding: 1px 4px; /* Slightly tighter padding */
+    border-radius: 3px;
+    margin-left: 2px;
+    margin-right: 2px;
+}
+
+
 /* Two-Column Layout for Modal Details */
 .details-columns { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 10px; }
 .details-column { flex: 1; min-width: 230px; }

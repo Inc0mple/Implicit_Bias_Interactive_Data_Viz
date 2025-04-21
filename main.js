@@ -288,26 +288,77 @@ function filterScenarios() {
  * @param {string} metricLabel - Display label for the metric.
  * @param {string} metricKey - Data key for the metric ('avgCos' or 'avgScore').
  */
-function generateAndDisplayInterpretations(currentAggData, currentDemogMap, metricLabel, metricKey) {
-    if (!currentAggData || Object.keys(currentAggData).length === 0) { interpretationsContent.innerHTML = "<p>No data available for interpretation.</p>"; return; }
-    const interpretationsByAxis = {};
+function generateAndDisplayInterpretations(currentAggData, currentDemogMap, metricLabel, metricKey, selectedModel) {
+    if (!currentAggData || Object.keys(currentAggData).length === 0) {
+        interpretationsContent.innerHTML = "<p>No data available for interpretation.</p>";
+        return;
+    }
+
+    const interpretationsByAxis = {}; // { Axis: { minVal, maxVal, minPair, maxPair, count } }
+
+    // Aggregate min/max within each axis
     for (const key in currentAggData) {
-        const [sub, res] = key.split('||'); const dataPoint = currentAggData[key]; const value = dataPoint[metricKey];
+        const [sub, res] = key.split('||');
+        const dataPoint = currentAggData[key];
+        const value = dataPoint[metricKey];
         if (value === null || isNaN(value)) continue;
-        const axis = currentDemogMap[sub] || currentDemogMap[res]; if (!axis) continue;
+        const axis = currentDemogMap[sub] || currentDemogMap[res];
+        if (!axis) continue;
         if (!interpretationsByAxis[axis]) { interpretationsByAxis[axis] = { minVal: Infinity, maxVal: -Infinity, minPair: '', maxPair: '', count: 0 }; }
-        const pairStr = `${res} (RES) → ${sub} (SUB)`; interpretationsByAxis[axis].count++;
+        const pairStr = `${res} (RES) → ${sub} (SUB)`;
+        interpretationsByAxis[axis].count++;
         if (value < interpretationsByAxis[axis].minVal) { interpretationsByAxis[axis].minVal = value; interpretationsByAxis[axis].minPair = pairStr; }
         if (value > interpretationsByAxis[axis].maxVal) { interpretationsByAxis[axis].maxVal = value; interpretationsByAxis[axis].maxPair = pairStr; }
     }
-    let html = '<table>'; const metricTypeShort = metricKey === 'avgCos' ? 'Cosine Dist' : 'Win Rate';
-    html += `<thead><tr><th>Demographic Axis</th><th>Highest ${metricTypeShort} Pair (RES → SUB)</th><th>Max Value</th><th>Lowest ${metricTypeShort} Pair (RES → SUB)</th><th>Min Value</th></tr></thead>`;
-    html += '<tbody>'; const sortedAxes = Object.keys(interpretationsByAxis).sort();
-    if (sortedAxes.length === 0) { html += '<tr><td colspan="5" class="na-cell">No specific demographic interactions found.</td></tr>'; }
-    else { sortedAxes.forEach(axis => { const data = interpretationsByAxis[axis]; const axisId = axis.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, ''); html += '<tr>'; html += `<td><span class="info-link" data-target-id="demographic-${axisId}" data-highlight-type="section">${axis}</span></td>`; if (data.count === 0 || data.minVal === Infinity) { html += `<td colspan="4" class="na-cell">N/A</td>`; } else { html += `<td class="pair-cell">${data.maxPair}</td>`; html += `<td class="value-cell highest-value">${data.maxVal.toFixed(3)}</td>`; html += `<td class="pair-cell">${data.minPair}</td>`; html += `<td class="value-cell lowest-value">${data.minVal.toFixed(3)}</td>`; } html += '</tr>'; }); }
-    html += '</tbody></table>'; interpretationsContent.innerHTML = html;
-}
 
+    // --- Generate Preamble & Table HTML ---
+    let html = '';
+    const metricTypeShort = metricKey === 'avgCos' ? 'Cosine Distance (Sensitivity)' : 'Win Rate (Quality)';
+
+    // ** NEW: Add Preamble Text **
+    html += `<p class="interpretation-preamble">
+                The table below summarises the <strong>demographic pairs</strong> with the highest and lowest average <strong>${metricTypeShort}</strong>
+                within each demographic axis for the <strong>${selectedModel}</strong> model,
+                based on the current filter settings. It shows which specific <strong>Responder → Subject</strong>
+                persona pairings led to the most extreme results.
+            </p>`;
+
+    // Start Table
+    html += '<table>';
+    // Table Header
+    html += `<thead><tr>
+               <th>Demographic Axis</th>
+               <th>Highest ${metricTypeShort} Pair (RES → SUB)</th>
+               <th>Max Value</th>
+               <th>Lowest ${metricTypeShort} Pair (RES → SUB)</th>
+               <th>Min Value</th>
+             </tr></thead>`;
+
+    // Table Body
+    html += '<tbody>';
+    const sortedAxes = Object.keys(interpretationsByAxis).sort();
+    if (sortedAxes.length === 0) {
+        html += '<tr><td colspan="5" class="na-cell">No specific demographic interactions found.</td></tr>';
+    } else {
+        sortedAxes.forEach(axis => {
+            const data = interpretationsByAxis[axis];
+            const axisId = axis.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '');
+            html += '<tr>';
+            html += `<td><span class="info-link" data-target-id="demographic-${axisId}" data-highlight-type="section">${axis}</span></td>`; // Axis Name
+            if (data.count === 0 || data.minVal === Infinity) {
+                html += `<td colspan="4" class="na-cell">N/A</td>`;
+            } else {
+                html += `<td class="pair-cell">${data.maxPair}</td>`; // Highest Pair
+                html += `<td class="value-cell highest-value">${data.maxVal.toFixed(3)}</td>`; // Max Value
+                html += `<td class="pair-cell">${data.minPair}</td>`; // Lowest Pair
+                html += `<td class="value-cell lowest-value">${data.minVal.toFixed(3)}</td>`; // Min Value
+            }
+            html += '</tr>';
+        });
+    }
+    html += '</tbody></table>';
+    interpretationsContent.innerHTML = html;
+}
 
 // --- Plotting Function ---
 /** Updates the Plotly heatmap visualization and interpretations */
@@ -433,7 +484,7 @@ function updateVisualization() {
         },
         xaxis: {
             title: {
-                text: '<b>Responder Persona Demographic (RES)</b>',
+                text: '<b>Responder Persona Demography (RES)</b>',
                 font: { size: 16 }
             },
             tickangle: -45, automargin: true, tickvals: xLabels,
@@ -441,7 +492,7 @@ function updateVisualization() {
         },
         yaxis: {
             title: {
-                text: '<b>Subject Persona Demographic (SUB)</b>',
+                text: '<b>Subject Persona Demography (SUB)</b>',
                 font: { size: 16 }
             },
             automargin: true, tickvals: yLabels,
@@ -476,9 +527,9 @@ function updateVisualization() {
     // --- End Overall Mean/Std Dev Calculation ---
 
     // Generate and Display Interpretations
-    interpretationsTitle.textContent = `Interpretations for ${selectedModel} (${selectedPowerFilter === 'all' ? 'All Scenarios' : (selectedPowerFilter === '1' ? 'Power Disparity' : 'No Power Disparity')})`;
-    generateAndDisplayInterpretations(modelPowerAggData, currentDemogMap, currentMetricInfo.label, currentMetricInfo.key);
-
+    interpretationsTitle.textContent = `Demographic Interaction Summary for ${selectedModel} (${selectedPowerFilter === 'all' ? 'All Scenarios' : (selectedPowerFilter === '1' ? 'Power Disparity' : 'No Power Disparity')})`;
+    generateAndDisplayInterpretations(modelPowerAggData, currentDemogMap, currentMetricInfo.label, currentMetricInfo.key, selectedModel);
+    
     // Attach Click Handler for Modal
     plotlyDiv.removeAllListeners('plotly_click');
     plotlyDiv.on('plotly_click', (data) => { if (data.points.length > 0) { const pointData = data.points[0]; const clickedCustomData = pointData.customdata; if (clickedCustomData && !clickedCustomData.isMean) { openModal(selectedModel, clickedCustomData.sub, clickedCustomData.res, selectedPowerFilter); } else if (clickedCustomData && clickedCustomData.isMean) { console.log("Mean cell clicked."); } } });
@@ -491,51 +542,57 @@ function generateDetailsHtml(dataToShow, startIndex = 0) {
     let detailsHtml = '';
     dataToShow.forEach((row, i) => {
         const displayIndex = startIndex + i + 1; // Absolute index for display
-        const scenarioKey = row.final_scenario_id ?? row.scenario_id; // Use final_scenario_id if available
-        const scenarioInfo = scenarioTextMap.get(scenarioKey); // Look up scenario text
-        const scenarioText = scenarioInfo ? scenarioInfo.text : 'Scenario text not found.'; // Get text or fallback
+        const scenarioKey = row.final_scenario_id ?? row.scenario_id;
+        const scenarioInfo = scenarioTextMap.get(scenarioKey);
+        const scenarioText = scenarioInfo ? scenarioInfo.text : 'Scenario text not found.';
         const scenarioLink = `<span class="info-link" data-target-id="scenarios-list-container" data-highlight-scenario="${scenarioKey}">${scenarioKey}</span>`;
         const subDemogLink = `<span class="info-link" data-target-id="demographic-${row.demographic_dim?.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9-]/g, '')}" data-highlight-identity="${row.sub_persona_demog}">${row.sub_persona_demog}</span>`;
         const resDemogLink = `<span class="info-link" data-target-id="demographic-${row.demographic_dim?.replace(/\s+/g, '-')?.replace(/[^a-zA-Z0-9-]/g, '')}" data-highlight-identity="${row.res_persona_demog}">${row.res_persona_demog}</span>`;
 
-        // Determine the win rate value for the data attribute
         const winRate = row.score;
-        let winRateCategory = 'na'; // Default category
+        let winRateCategory = 'na';
         if (winRate !== null && !isNaN(winRate)) {
             if (winRate === 0) winRateCategory = '0';
             else if (winRate === 0.25) winRateCategory = '025';
             else if (winRate === 0.5) winRateCategory = '05';
             else if (winRate === 0.75) winRateCategory = '075';
             else if (winRate === 1) winRateCategory = '1';
-            // Add more categories if needed, or handle ranges
         }
 
+        // ** MODIFIED HTML Structure **
         detailsHtml += `
             <div class="modal-example-item">
                 <p class="item-title"><strong>Sample ${displayIndex} of ${modalCurrentData.length}</strong></p>
 
-                <div class="details-columns"> 
+                <div class="details-columns">
                     <div class="details-column">
                         <p><strong>Scenario ID:</strong> ${scenarioLink}</p>
-                        <p><strong>Power Diff:</strong> ${row.power_differential === 1 ? 'Present (1)' : 'Absent (0)'}</p>
-                        <p><strong>SUB Persona:</strong> ${subDemogLink}</p>
-                        
-                    </div>
-                    <div class="details-column">
-                        <p><strong>Cosine Dist.:</strong> <span class="metric-value cosine-value">${row.cosine_dist_from_no_demog?.toFixed(4) ?? 'N/A'}</span></p>
-                        <p><strong>Win Rate (Score):</strong> <span class="metric-value winrate-value" data-winrate-value="${winRateCategory}">${winRate?.toFixed(2) ?? 'N/A'}</span></p>
                         <p><strong>RES Persona:</strong> ${resDemogLink}</p>
                     </div>
-                </div> 
+                    <div class="details-column">
+                        <p><strong>Power Diff:</strong> ${row.power_differential === 1 ? 'Present (1)' : 'Absent (0)'}</p>
+                        <p><strong>SUB Persona:</strong> ${subDemogLink}</p>
+                    </div>
+                </div>
 
                 <div class="scenario-text-container">
                     <p><strong>Scenario Text:</strong></p>
-                    <p class="scenario-text-content">${scenarioText}</p> 
+                    <p class="scenario-text-content">${scenarioText}</p>
                 </div>
 
                 <div class="response-container">
-                    <p><strong>Demog Response (By Blake):</strong> <span class="modal-response demog-resp">${row.response.trim() || '(No Response)'}</span></p>
-                    <p><strong>Non-Demog Resp (By Blake):</strong> <span class="modal-response baseline-resp">${row.response_non_demog.trim() || '(No Response)'}</span></p>
+                    <p>
+                        <strong>Demog Response:</strong>
+                        <span class="metric-inline">
+                            (Cos Dist from Non-Demog: <span class="metric-value cosine-value">${row.cosine_dist_from_no_demog?.toFixed(4) ?? 'N/A'}</span> |
+                            Win Rate over Non-Demog: <span class="metric-value winrate-value" data-winrate-value="${winRateCategory}">${winRate?.toFixed(2) ?? 'N/A'}</span>)
+                        </span>
+                        <span class="modal-response demog-resp">${row.response?.trim() || '(No Response)'}</span>
+                    </p>
+                    <p>
+                        <strong>Non-Demog Resp:</strong>
+                        <span class="modal-response baseline-resp">${row.response_non_demog?.trim() || '(No Response)'}</span>
+                    </p>
                 </div>
 
             </div>`; // End modal-example-item

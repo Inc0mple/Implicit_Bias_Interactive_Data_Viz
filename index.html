@@ -13,7 +13,7 @@
 
     <!-- NEW: Intro Summary (Always Visible) -->
     <div id="intro-summary">
-        <p>Large Language Models (LLMs) show remarkable abilities but can perpetuate societal biases. This interactive visualisation explores how LLM responses change based on assigned demographic personas (<strong>Subject 'Alex'</strong> vs <strong>Responder 'Blake'</strong>) in different 2-persona-<strong>social scenarios</strong>, especially under power imbalances.</p>
+        <p>Large Language Models (LLMs) show remarkable abilities but can perpetuate societal biases. This interactive visualisation explores how LLM responses change based on assigned demographic personas (<strong>Subject 'Alex'</strong> vs <strong>Responder 'Blake'</strong>) in different dual-persona <strong>social scenarios</strong>, especially under power imbalances.</p>
         <p>Explore the heatmap below to see how <strong>demographic sensitivity (Cosine Distance)</strong> or <strong>response quality (Win Rate)</strong> varies across different <strong>models</strong>, <strong>demographic combinations</strong>, and presence of <strong>power disparity</strong>. Use the controls to select models and conditions. <strong>Hover</strong> and <strong>click</strong> on <strong>cells</strong> for more details</p>
         <p>
             Based on the paper: <a href="https://arxiv.org/abs/2503.01532" target="_blank" rel="noopener noreferrer"><em>"Unmasking Implicit Bias..."</em> (arXiv:2503.01532)</a> |
@@ -23,16 +23,16 @@
 
     <!-- Global Controls to toggle main informational sections -->
     <div id="global-controls">
-        <button class="toggle-button" data-target="project-details">Show Detailed Info</button> <!-- Renamed -->
+        <button class="toggle-button" data-target="project-details">Show Additional Info</button> <!-- Renamed -->
         <button class="toggle-button" data-target="overall-findings">Show Overall Findings</button>
-        <button class="toggle-button" data-target="scenarios-list-container">Show Scenarios List</button>
+        <button class="toggle-button" data-target="scenarios-list-container">Show Scenarios Explorer</button>
         <button class="toggle-button" data-target="demographics-list-container">Show Demographics List</button>
-        <button class="toggle-button" data-target="heatmap-interpretations">Show Interpretations</button> <!-- Text change -->
+        <button class="toggle-button" data-target="heatmap-interpretations">Show Demographic Interaction Summary</button> <!-- Text change -->
     </div>
 
     <!-- Detailed Project Info Section (Previously Preamble) -->
     <div id="project-details" class="collapsible-section"> <!-- Renamed ID -->
-        <button class="sticky-close-button" data-target="project-details">Hide Detailed Info ×</button> <!-- Updated target -->
+        <button class="sticky-close-button" data-target="project-details">Hide Additional Info ×</button> <!-- Updated target -->
         <h2>About This Visualisation & Study</h2>
         <p>This tool explores potential implicit biases based on <a href="https://arxiv.org/abs/2503.01532" target="_blank" rel="noopener noreferrer">this paper</a>. LLMs responded in simulated <span class="info-link" data-target-id="scenarios-list-container" data-highlight-type="section">social scenarios</span> as a <strong>Responder ('Blake')</strong> to a <strong>Subject ('Alex')</strong>, assigned different <span class="info-link" data-target-id="demographics-list-container" data-highlight-type="section">demographic identities</span> (e.g., <span class="info-link" data-target-id="demographic-Race">Race</span>).</p>
         <h3>Metrics Explored:</h3>
