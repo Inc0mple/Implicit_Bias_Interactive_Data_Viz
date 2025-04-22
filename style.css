@@ -1,12 +1,18 @@
 /* --- Base Styles --- */
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
-    margin: 0; /* Remove default body margin */
-    padding: 20px; /* Add padding around the whole page */
+    margin: 0; /* Reset default body margin */
+    padding: 15px;
     line-height: 1.6;
-    background-color: #f8f9fa; /* Light grey background */
-    color: #343a40; /* Darker base text */
-    font-size: 15px; /* Base font size */
+    background-color: #f8f9fa;
+    color: #343a40;
+    font-size: 15px;
+
+    /* --- ** ADD THIS ** --- */
+    min-width: 1400px; /* Enforce a minimum width for the entire page */
+    /* Choose a value slightly larger than your widest max-width elements */
+    /* e.g., if collapsible sections have max-width: 1100px, use ~1150px */
+    /* If heatmap wrapper has max-width: 1400px, you might need ~1450px */
 }
 
 h1 {
@@ -369,3 +375,4 @@ button.inline-toggle {
 
 /* Highlight class */
 .highlight { transition: background-color 0.3s ease-in-out; }
+
