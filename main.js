@@ -317,7 +317,7 @@ function generateAndDisplayInterpretations(currentAggData, currentDemogMap, metr
 
     // --- Generate Preamble & Table HTML ---
     let html = '';
-    const metricTypeShort = metricKey === 'avgCos' ? 'Cosine Distance (Sensitivity)' : 'Win Rate (Quality)';
+    const metricTypeShort = metricKey === 'avgCos' ? 'Cosine Distance from the Non-Demog Response' : 'Win Rate (Quality)';
 
     // ** NEW: Add Preamble Text **
     html += `<p class="interpretation-preamble">
