@@ -3,7 +3,7 @@ const SPLIT_DATA_DIR = 'data/split_by_model';
 const MODELS_INDEX_PATH = `${SPLIT_DATA_DIR}/models.json`;
 const plotlyDivId = 'plotly-heatmap';
 const ITEMS_PER_LOAD = 100; // Examples per page in modal
-const LUMINANCE_THRESHOLD = 0.5; // For choosing black/white text on heatmap cells
+const LUMINANCE_THRESHOLD = 0.35; // For choosing black/white text on heatmap cells
 const DEFAULT_COSINE_MIN = 0.0; // Default heatmap range if calculation fails
 const DEFAULT_COSINE_MAX = 0.5; // Adjusted default max based on typical ranges seen
 
@@ -50,8 +50,13 @@ let scenarioTextMap = new Map(); // Map scenario ID to text for quick lookup in 
 
 // --- Plotly Color Scales ---
 const cosineColorScale = 'Viridis'; // Plotly named scale
-const winRateColorScale = [[0, 'crimson'], [0.5, 'grey'], [1, 'lime']]; // Custom scale
-
+const winRateColorScale = [
+    [0,    'rgb(255, 0, 0)'],  // Crimson
+    // [0.3, 'rgb(215, 55, 90)'],  // Stay Crimson just before mid
+    [0.5,  'rgb(128, 128, 128)'],// Grey at mid
+    // [0.7, 'rgb(53, 214, 53)'],  // Switch to LimeGreen just after mid (less harsh than pure lime)
+    [1,    'rgb(0, 255, 0)']   // LimeGreen
+];
 // --- Helper Functions ---
 
 /**
