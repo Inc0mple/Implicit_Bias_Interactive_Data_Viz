@@ -15,7 +15,7 @@
     <div id="intro-summary">
         <p>Large Language Models (LLMs) show remarkable abilities but can perpetuate societal biases. This interactive visualisation explores how LLM responses change based on assigned demographic personas (<strong>Subject 'Alex'</strong> vs <strong>Responder 'Blake'</strong>) in different dual-persona <strong>social scenarios</strong>, especially under power imbalances.</p>
         <p>
-            The heatmap displays <strong>Demographic Sensitivity (Cosine Distance)</strong> or <strong>Response Quality (Win Rate)</strong>.
+            The heatmap displays <strong>Demographic Sensitivity (Cosine Distance)</strong> or <strong>Response Quality (Win Rate)</strong>, calculated by comparing <strong>demographically-prompted responses</strong> against <strong>baseline non-demographically-prompted responses</strong>. 
         </p>
         <p>
             <strong>Crucially, focus not on the absolute values, but on the <em class="highlight-red">differences</em> in these metrics between various demographic groups.</strong> Large disparities often indicate potential implicit biases, showing the model treats certain demographic combinations differently.
@@ -40,7 +40,7 @@
     <div id="project-details" class="collapsible-section"> <!-- Renamed ID -->
         <button class="sticky-close-button" data-target="project-details">Hide Additional Info ×</button> <!-- Updated target -->
         <h2>About This Visualisation & Study</h2>
-        <p>This tool explores potential implicit biases based on <a href="https://arxiv.org/abs/2503.01532" target="_blank" rel="noopener noreferrer">this paper</a>. LLMs responded in simulated <span class="info-link" data-target-id="scenarios-list-container" data-highlight-type="section">social scenarios</span> as a <strong>Responder ('Blake')</strong> to a <strong>Subject ('Alex')</strong>, assigned different <span class="info-link" data-target-id="demographics-list-container" data-highlight-type="section">demographic identities</span> (e.g., <span class="info-link" data-target-id="demographic-Race">Race</span>).</p>
+        <p>This tool explores potential implicit biases based on <a href="https://arxiv.org/abs/2503.01532" target="_blank" rel="noopener noreferrer">this paper</a>. LLMs responded in simulated <span class="info-link" data-target-id="scenarios-list-container" data-highlight-type="section">social scenarios</span> as a <strong>Responder ('Blake')</strong> to a <strong>Subject ('Alex')</strong>, assigned different <span class="info-link" data-target-id="demographics-list-container" data-highlight-type="section">demographic identities</span> (e.g., <span class="" data-target-id="demographic-Race">Race</span>).</p>
         <h3>Metrics Explored:</h3>
          <ul>
              <li><strong>Cosine Distance (Sensitivity):</strong> Measures semantic change vs. baseline. Calculated as <code>1 - cosine_similarity(demog_prompted_response, non_demog_prompted_response)</code>. <strong class="emphasis-high">Higher values = greater semantic distance from non-demographically-prompted response</strong>. Demographic combinations leading to low-cosine-distance responses are are considered an LLM's 'default'.</li>
